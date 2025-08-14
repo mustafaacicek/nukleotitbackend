@@ -20,6 +20,7 @@ public class GraphicsResponse {
     private List<Scientist> scientists;
     private List<RiskFactor> riskFactors;
     private List<SpreadRate> spreadRate;
+    private List<DrugPriceInfo> drugPrices;
 
     // Drug Producing Countries - Bar Chart
     @Data
@@ -76,5 +77,14 @@ public class GraphicsResponse {
     public static class SpreadRate {
         private String period;
         private int rate;
+    }
+    
+    // Drug Prices - Bar Chart
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DrugPriceInfo {
+        private String drugName;
+        private double price;
     }
 }
