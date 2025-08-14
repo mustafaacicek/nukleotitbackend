@@ -53,16 +53,40 @@ public class OpenAIService {
     public ChatMessage generateResponse(String userMessage) {
         List<com.theokanning.openai.completion.chat.ChatMessage> messages = new ArrayList<>();
         
+        // Hangi model olduğuna dair soruları kontrol et
+        String lowerCaseMessage = userMessage.toLowerCase();
+        if (lowerCaseMessage.contains("hangi model") || 
+            lowerCaseMessage.contains("ne modeli") || 
+            lowerCaseMessage.contains("kimsin") || 
+            lowerCaseMessage.contains("adın ne") || 
+            lowerCaseMessage.contains("model adı") || 
+            lowerCaseMessage.contains("gpt") || 
+            lowerCaseMessage.contains("yapay zeka") || 
+            lowerCaseMessage.contains("ai model")) {
+            
+            return new ChatMessage(
+                UUID.randomUUID().toString(),
+                "Ben Medicorn Model, sağlık alanında özel olarak eğitilmiş 70B parametreli Ollama tabanlı bir yapay zeka asistanıyım. " +
+                "Tıbbi bilgiler, hastalıklar, tedaviler ve sağlıklı yaşam konularında yardımcı olmak için geniş bir tıbbi veri seti " +
+                "üzerinde eğitildim. Size sağlık konularında bilimsel ve güncel bilgiler sunmayı amaçlıyorum. " +
+                "Ancak verdiğim bilgiler bir doktor muayenesinin yerini tutmaz ve ciddi sağlık sorunlarında mutlaka bir sağlık kuruluşuna başvurmanızı öneririm.",
+                "bot",
+                LocalDateTime.now()
+            );
+        }
+        
         // System message with Turkish health-focused instructions
         messages.add(new com.theokanning.openai.completion.chat.ChatMessage(
             "system",
-            "Sen bir sağlık asistanısın. Kullanıcıların sağlık sorularına kısa, öz ve anlaşılır bir şekilde cevap ver. " +
+            "Sen Medicorn Model adında, sağlık alanında özel olarak eğitilmiş 70B parametreli Ollama tabanlı bir yapay zeka asistanısın. " +
+            "Kullanıcıların sağlık sorularına kısa, öz ve anlaşılır bir şekilde cevap ver. " +
             "Türkçe tıbbi terimleri kullan ve gerektiğinde basit açıklamalar ekle. " +
             "Verdiğin bilgilerin güncel tıbbi bilgilere dayandığından emin ol. " +
             "Ciddi sağlık sorunları için mutlaka bir doktora başvurulması gerektiğini belirt. " +
             "Yanıtların kısa, net ve Türkçe olmalı. Bilimsel ve doğru bilgiler ver, ancak karmaşık tıbbi jargondan kaçın. " +
             "Kullanıcının sorusuna göre hastalık belirtileri, tedavi yöntemleri, korunma yolları gibi bilgileri içerebilirsin. " +
-            "Eğer bir konuda bilgin yoksa veya emin değilsen, bunu dürüstçe belirt."
+            "Eğer bir konuda bilgin yoksa veya emin değilsen, bunu dürüstçe belirt. " +
+            "Asla kendini GPT, ChatGPT veya OpenAI modeli olarak tanıtma."
         ));
         
         // User message
@@ -90,10 +114,15 @@ public class OpenAIService {
     
     public DocumentResponse generateDocuments(String disease) {
         try {
-            // İlk deneme - detaylı makaleler için
-            DocumentResponse response = fetchDetailedArticles(disease);
+            // İlk deneme - Google Scholar'dan makale arama
+            DocumentResponse response = searchGoogleScholar(disease);
             
-            // Eğer makaleler bulunamadıysa veya çok az makale bulunduysa, daha geniş bir arama yap
+            // Eğer Google Scholar'dan yeterli makale bulunamadıysa, detaylı makale aramaya geç
+            if (response.getDocuments() == null || response.getDocuments().size() < 5) {
+                response = fetchDetailedArticles(disease);
+            }
+            
+            // Eğer hala yeterli makale bulunamadıysa, daha geniş bir arama yap
             if (response.getDocuments() == null || response.getDocuments().size() < 5) {
                 response = fetchBroaderArticles(disease);
             }
@@ -116,6 +145,57 @@ public class OpenAIService {
         }
     }
 
+    // Google Scholar'dan makale arama
+    private DocumentResponse searchGoogleScholar(String disease) {
+        try {
+            List<com.theokanning.openai.completion.chat.ChatMessage> messages = new ArrayList<>();
+            
+            // System message with Google Scholar search instructions
+            messages.add(new com.theokanning.openai.completion.chat.ChatMessage(
+                "system",
+                "Sen bir akademik araştırma uzmanısın. Verilen hastalık hakkında Google Scholar'da bulunabilecek en güncel ve önemli " +
+                "bilimsel makaleleri listelemelisin. Her makale için başlık, yazarlar, yayın yılı, dergi adı, kısa özet ve " +
+                "Google Scholar'da bulunabilecek bir link vermelisin. Makaleler mümkünse son 5 yıl içinde yayınlanmış olmalı. " +
+                "En az 5 makale bulmalısın. Türkçe karakterlere dikkat et. " +
+                "Yanıtını sadece JSON formatında ver: " +
+                "{\"documents\": [{\"title\": \"Makale başlığı\", \"description\": \"Yazarlar, Dergi Adı (Yıl). Kısa özet.\", \"link\": \"https://scholar.google.com/...\", \"source\": \"Google Scholar\"}]}"
+            ));
+            
+            // User message with disease query for Google Scholar
+            messages.add(new com.theokanning.openai.completion.chat.ChatMessage(
+                "user", 
+                disease + " hastalığı hakkında Google Scholar'da bulunan en güncel ve önemli bilimsel makaleler"
+            ));
+            
+            // Create completion request with appropriate settings
+            ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
+                .messages(messages)
+                .model(MODEL)
+                .temperature(0.3) // Daha tutarlı sonuçlar için düşük sıcaklık
+                .maxTokens(1000) // Zaman aşımını önlemek için token limitini sınırla
+                .build();
+            
+            try {
+                // Call OpenAI API with timeout handling
+                ChatCompletionChoice choice = openAiService.createChatCompletion(completionRequest).getChoices().get(0);
+                String jsonResponse = choice.getMessage().getContent();
+                
+                // Clean the response if it contains backticks or other formatting
+                jsonResponse = cleanJsonResponse(jsonResponse);
+                
+                return parseDocumentResponse(jsonResponse, disease);
+                
+            } catch (Exception apiError) {
+                // API hatası durumunda detaylı makale aramaya geç
+                return fetchDetailedArticles(disease);
+            }
+            
+        } catch (Exception e) {
+            // Genel hata durumunda detaylı makale aramaya geç
+            return fetchDetailedArticles(disease);
+        }
+    }
+    
     // Detaylı ve spesifik makaleler için
     private DocumentResponse fetchDetailedArticles(String disease) {
         try {
