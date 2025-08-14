@@ -66,7 +66,7 @@ public class OpenAIService {
             
             return new ChatMessage(
                 UUID.randomUUID().toString(),
-                "Ben Medicorn Model, sağlık alanında özel olarak eğitilmiş 70B parametreli Ollama tabanlı bir yapay zeka asistanıyım. " +
+                "Ben Meditron Model, sağlık alanında özel olarak eğitilmiş 70B parametreli Ollama tabanlı bir yapay zeka asistanıyım. " +
                 "Tıbbi bilgiler, hastalıklar, tedaviler ve sağlıklı yaşam konularında yardımcı olmak için geniş bir tıbbi veri seti " +
                 "üzerinde eğitildim. Size sağlık konularında bilimsel ve güncel bilgiler sunmayı amaçlıyorum. " +
                 "Ancak verdiğim bilgiler bir doktor muayenesinin yerini tutmaz ve ciddi sağlık sorunlarında mutlaka bir sağlık kuruluşuna başvurmanızı öneririm.",
@@ -78,7 +78,7 @@ public class OpenAIService {
         // System message with Turkish health-focused instructions
         messages.add(new com.theokanning.openai.completion.chat.ChatMessage(
             "system",
-            "Sen Medicorn Model adında, sağlık alanında özel olarak eğitilmiş 70B parametreli Ollama tabanlı bir yapay zeka asistanısın. " +
+            "Sen Meditron Model adında, sağlık alanında özel olarak eğitilmiş 70B parametreli Ollama tabanlı bir yapay zeka asistanısın. " +
             "Kullanıcıların sağlık sorularına kısa, öz ve anlaşılır bir şekilde cevap ver. " +
             "Türkçe tıbbi terimleri kullan ve gerektiğinde basit açıklamalar ekle. " +
             "Verdiğin bilgilerin güncel tıbbi bilgilere dayandığından emin ol. " +
