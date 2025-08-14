@@ -24,4 +24,4 @@ EXPOSE 8080
 ENV PORT=8080
 
 # Uygulamayı başlatın
-CMD ["java", "-Dserver.port=$PORT", "-jar", "app.jar"]
+CMD ["java", "-Dserver.port=8080", "-jar", "app.jar"]
